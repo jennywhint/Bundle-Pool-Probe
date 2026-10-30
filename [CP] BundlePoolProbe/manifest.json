@@ -1,0 +1,13 @@
+{
+  "Name": "BundlePoolProbe (Farm Entrance)",
+  "Author": "Awassakura",
+  "Version": "1.0.0",
+  "Description": "为 BundlePoolProbe 提供农场传送入口。",
+  "UniqueID": "Awassakura.BundlePoolProbe.CP",
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  },
+  "Dependencies": [
+    { "UniqueID": "Awassakura.BundlePoolProbe" }
+  ]
+}

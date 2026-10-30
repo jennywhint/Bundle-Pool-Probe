@@ -9,7 +9,6 @@ using StardewValley;
 
 namespace BundlePoolProbe
 {
-    // 池里的单个条目：带限定物品 ID、来源类型、所属献祭包名
     public class PoolItem
     {
         public string QualifiedItemId { get; set; } = "";
@@ -24,12 +23,21 @@ namespace BundlePoolProbe
         private const string BodyKey = "BundlePoolProbe.MailBody";
         private const string PoolKey = "BundlePool";
 
+        // Hub 内部传送坐标：需要在你的 BPP_Hub.tmx 和 BPP_Pantry.tmx 上确认可站立
+        private const int HUB_ENTRY_X = 15;   // 枢纽里站上这一格右键 → Pantry
+        private const int HUB_ENTRY_Y = 4;
+        private const int HUB_SPAWN_X = 5;    // 从 Pantry 回 Hub 的落点
+        private const int HUB_SPAWN_Y = 5;
+        private const int PANTRY_SPAWN_X = 5; // 从 Hub 进入 Pantry 的落点
+        private const int PANTRY_SPAWN_Y = 5;
+
         private string? _pendingMailBody;
 
         public override void Entry(IModHelper helper)
         {
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
+            helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
 
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
             helper.ConsoleCommands.Add("bpp_rebuild", "从 BundleData 重建静态池并写入存档。", this.OnRebuildCommand);
@@ -38,6 +46,8 @@ namespace BundlePoolProbe
         // ===================== 存档加载 =====================
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
+            this.EnsureCustomLocations();
+
             var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
 
             if (pool == null || pool.Count == 0)
@@ -58,7 +68,6 @@ namespace BundlePoolProbe
                 this.Monitor.Log($"从存档读取池：{pool.Count} 组，{this.CountItems(pool)} 个条目。", LogLevel.Info);
             }
 
-            // 邮件：从池构建正文，只发一次
             if (this.Helper.Data.ReadSaveData<string>(QueuedKey) == "1")
             {
                 this.Monitor.Log("此存档已发送过探测邮件，跳过。", LogLevel.Trace);
@@ -76,6 +85,54 @@ namespace BundlePoolProbe
                 "探测邮件已放入邮箱。正文预览：\n" + _pendingMailBody.Replace("^", Environment.NewLine),
                 LogLevel.Info
             );
+        }
+
+        // ===================== 自定义 Location 与传送 =====================
+        private void EnsureCustomLocations()
+        {
+            if (Game1.getLocationFromName("BPP_Hub") == null)
+            {
+                string assetName = this.Helper.ModContent.GetInternalAssetName("assets/Maps/BPP_Hub.tmx").Name;
+                Game1.locations.Add(new GameLocation(assetName, "BPP_Hub"));
+                this.Monitor.Log($"已注册 BPP_Hub，资产键：{assetName}", LogLevel.Info);
+            }
+
+            if (Game1.getLocationFromName("BPP_Pantry") == null)
+            {
+                string assetName = this.Helper.ModContent.GetInternalAssetName("assets/Maps/BPP_Pantry.tmx").Name;
+                Game1.locations.Add(new GameLocation(assetName, "BPP_Pantry"));
+                this.Monitor.Log($"已注册 BPP_Pantry，资产键：{assetName}", LogLevel.Info);
+            }
+        }
+
+        private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
+        {
+            if (!Context.IsWorldReady)
+                return;
+            if (!e.Pressed.Contains(SButton.MouseRight))
+                return;
+
+            var player = Game1.player;
+            var loc = player.currentLocation;
+            if (loc == null)
+                return;
+
+            int x = player.TilePoint.X;
+            int y = player.TilePoint.Y;
+
+            // Hub → Pantry
+            if (loc.Name == "BPP_Hub" && x == HUB_ENTRY_X && y == HUB_ENTRY_Y)
+            {
+                Game1.warpFarmer("BPP_Pantry", PANTRY_SPAWN_X, PANTRY_SPAWN_Y, false);
+                return;
+            }
+
+            // Pantry → Hub
+            if (loc.Name == "BPP_Pantry" && x == 3 && y == 3)
+            {
+                Game1.warpFarmer("BPP_Hub", HUB_SPAWN_X, HUB_SPAWN_Y, false);
+                return;
+            }
         }
 
         // ===================== 邮件资产注入 =====================
@@ -202,7 +259,6 @@ namespace BundlePoolProbe
                 {
                     string id = tokens[i];
 
-                    // -1 是金钱献祭的占位符，不进池
                     if (id == "-1")
                         continue;
 

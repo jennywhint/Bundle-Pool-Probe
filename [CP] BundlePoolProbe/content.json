@@ -1,0 +1,121 @@
+{
+  "Format": "2.0.0",
+  "ConfigSchema": {
+    "Coordinates_X": { "Default": 45 },
+    "Coordinates_Y": { "Default": 10 }
+  },
+  "Changes": [
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Standard" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Fishing",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Riverland" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Foraging",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Forest" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Mining",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Hilltop" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Combat",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Wilderness" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_FourCorners",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "FourCorners" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Beach",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "Beach" }
+    },
+    {
+      "Action": "EditMap",
+      "Target": "Maps/Farm_Meadowlands",
+      "FromFile": "assets/BPP_FarmWarp.tmx",
+      "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
+      "ToArea": {
+        "X": "{{Query: {{Coordinates_X}} }}",
+        "Y": "{{Query: {{Coordinates_Y}} }}",
+        "Width": 1,
+        "Height": 2
+      },
+      "PatchMode": "Overlay",
+      "When": { "FarmType": "MeadowlandsFarm" }
+    }
+  ]
+}

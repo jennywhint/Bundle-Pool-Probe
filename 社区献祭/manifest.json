@@ -1,9 +1,9 @@
 {
   "Name": "BundlePoolProbe",
-  "Author": "你的名字",
+  "Author": "Awassakura",
   "Version": "1.0.0",
   "Description": "读取当前存档献祭包并发送探测邮件。",
-  "UniqueID": "你的名字.BundlePoolProbe",
+  "UniqueID": "Awassakura.BundlePoolProbe",
   "EntryDll": "BundlePoolProbe.dll",
   "MinimumApiVersion": "4.0.0"
 }
