@@ -212,9 +212,9 @@ namespace BundlePoolProbe
 
             if (loc.Name == "BPP_Hub" && x == HUB_EXIT_X && y == HUB_EXIT_Y)
             {
-                var cfg = this.ReadFarmWarpConfig();
-                int targetX = cfg.Coordinates_X;
-                int targetY = cfg.Coordinates_Y + 2;
+                var (cfgX, cfgY) = this.ReadFarmWarpConfig();
+                int targetX = cfgX;
+                int targetY = cfgY + 2;
                 Game1.warpFarmer("Farm", targetX, targetY, false);
                 this.Monitor.Log($"Hub → Farm 传送至 ({targetX}, {targetY})", LogLevel.Trace);
                 return;
@@ -222,41 +222,66 @@ namespace BundlePoolProbe
         }
 
         // ===================== 读取 CP 配置 =====================
-        private FarmWarpConfig ReadFarmWarpConfig()
+        private (int X, int Y) ReadFarmWarpConfig()
         {
-            var defaults = new FarmWarpConfig { Coordinates_X = 45, Coordinates_Y = 10 };
+            // 兜底值必须和 [CP] BundlePoolProbe/content.json 里 ConfigSchema 的 Default 一致
+            const int fallbackX = 55;
+            const int fallbackY = 10;
 
             string? parentDir = Path.GetDirectoryName(this.Helper.DirectoryPath);
             if (string.IsNullOrEmpty(parentDir))
             {
-                this.Monitor.Log("无法定位 Mods 目录，使用默认坐标 (45, 10)。", LogLevel.Warn);
-                return defaults;
+                this.Monitor.Log($"[诊断] 无法定位 Mods 目录，使用默认坐标 ({fallbackX}, {fallbackY})", LogLevel.Warn);
+                return (fallbackX, fallbackY);
             }
 
             string configPath = Path.Combine(parentDir, CpPackFolderName, "config.json");
             if (!File.Exists(configPath))
             {
-                this.Monitor.Log($"[诊断] config.json 不存在，使用默认坐标 ({defaults.Coordinates_X}, {defaults.Coordinates_Y})，期望路径={configPath}", LogLevel.Info);
-                return defaults;
+                this.Monitor.Log($"[诊断] CP config.json 不存在，使用默认坐标 ({fallbackX}, {fallbackY})，期望路径={configPath}", LogLevel.Info);
+                return (fallbackX, fallbackY);
             }
 
             try
             {
                 string text = File.ReadAllText(configPath);
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var cfg = JsonSerializer.Deserialize<FarmWarpConfig>(text, options);
+                using var doc = JsonDocument.Parse(text);
+                var root = doc.RootElement;
 
-                this.Monitor.Log($"[诊断] 读到 CP config：X={cfg?.Coordinates_X}, Y={cfg?.Coordinates_Y}，路径={configPath}", LogLevel.Info);
+                int x = ReadIntProperty(root, "Coordinates_X", fallbackX);
+                int y = ReadIntProperty(root, "Coordinates_Y", fallbackY);
 
-                return cfg ?? defaults;
+                this.Monitor.Log($"[诊断] 读到 CP config：X={x}, Y={y}，路径={configPath}", LogLevel.Trace);
+                return (x, y);
             }
             catch (Exception ex)
             {
-                this.Monitor.Log($"读取 CP config.json 失败：{ex.Message}，使用默认坐标。", LogLevel.Warn);
-                return defaults;
+                this.Monitor.Log($"[诊断] 读取 CP config.json 失败：{ex.Message}，使用默认坐标 ({fallbackX}, {fallbackY})", LogLevel.Warn);
+                return (fallbackX, fallbackY);
             }
         }
 
+        private static int ReadIntProperty(JsonElement root, string propertyName, int fallback)
+        {
+            if (root.ValueKind != JsonValueKind.Object)
+                return fallback;
+
+            foreach (var prop in root.EnumerateObject())
+            {
+                if (!string.Equals(prop.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // 兼容 CP 可能存成数字 55 或字符串 "55"
+                if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out int n))
+                    return n;
+                if (prop.Value.ValueKind == JsonValueKind.String && int.TryParse(prop.Value.GetString(), out int s))
+                    return s;
+
+                return fallback;
+            }
+
+            return fallback;
+        }
         // ===================== 邮件资产注入 =====================
         private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
         {
