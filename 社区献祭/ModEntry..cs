@@ -8,6 +8,7 @@ using System.Text.Json;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using Microsoft.Xna.Framework;
 
 namespace BundlePoolProbe
 {
@@ -16,6 +17,17 @@ namespace BundlePoolProbe
         public string QualifiedItemId { get; set; } = "";
         public string SourceType { get; set; } = "";
         public string BundleName { get; set; } = "";
+    }
+    public class SpawnLedgerEntry
+    {
+        public string LocationName { get; set; } = "";
+        public int TileX { get; set; }
+        public int TileY { get; set; }
+        public string QualifiedItemId { get; set; } = "";
+        public string BatchDate { get; set; } = "";
+        public string SourceType { get; set; } = "";
+        public string BundleName { get; set; } = "";
+        public string Type { get; set; } = "";  // "Ground" / "Container"
     }
 
     public class FarmWarpConfig
@@ -38,9 +50,19 @@ namespace BundlePoolProbe
 
         private const int BUILD_DELAY_TICKS = 300;  // 5 秒
 
+        private const string LedgerKey = "SpawnLedger";
+        private const int SPAWN_DELAY_TICKS = 400;
+        private const string PantryLocationName = "BPP_Pantry";
+        private const string PantryPoolGroup = "Pantry";
+
         private string? _pendingMailBody;
         private int _buildDelayCounter;
         private bool _isWaitingToBuild;
+
+        private int _spawnDelayCounter;
+        private bool _isWaitingToSpawn;
+
+
 
         public override void Entry(IModHelper helper)
         {
@@ -52,6 +74,7 @@ namespace BundlePoolProbe
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
             helper.ConsoleCommands.Add("bpp_rebuild", "从 BundleData 重建静态池并写入存档。", this.OnRebuildCommand);
             helper.ConsoleCommands.Add("bpp_rawbundle", "打印当前 _bundleData 的原始条目。", this.OnRawBundleCommand);
+            helper.ConsoleCommands.Add("bpp_ledger", "打印当前存档的生成账本。", this.OnLedgerCommand);
         }
 
         // ===================== 存档加载：只注册 Location，不碰池 =====================
@@ -69,6 +92,7 @@ namespace BundlePoolProbe
         // ===================== 每日开始：池为空则延迟构建 =====================
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
+            this.ScheduleSpawnForToday();  // ← 新增，独立延迟，和池构建解耦
             var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
 
             if (pool != null && pool.Count > 0)
@@ -77,6 +101,7 @@ namespace BundlePoolProbe
                     $"[诊断] DayStarted 读到已有池：{pool.Count} 组 / {this.CountItems(pool)} 条目",
                     LogLevel.Info
                 );
+
                 this.TrySendMail(pool);
                 return;
             }
@@ -92,6 +117,7 @@ namespace BundlePoolProbe
                 _isWaitingToBuild = true;
                 this.Helper.Events.GameLoop.UpdateTicked += this.OnDelayedBuild;
             }
+
         }
 
         private void OnDelayedBuild(object? sender, UpdateTickedEventArgs e)
@@ -129,6 +155,192 @@ namespace BundlePoolProbe
             );
 
             this.TrySendMail(pool);
+        }
+        // ===================== 每日生成 =====================
+        private void ScheduleSpawnForToday()
+        {
+            _spawnDelayCounter = 0;
+            if (!_isWaitingToSpawn)
+            {
+                _isWaitingToSpawn = true;
+                this.Helper.Events.GameLoop.UpdateTicked += this.OnDelayedSpawn;
+            }
+        }
+
+        private void OnDelayedSpawn(object? sender, UpdateTickedEventArgs e)
+        {
+            _spawnDelayCounter++;
+            if (_spawnDelayCounter < SPAWN_DELAY_TICKS)
+                return;
+
+            this.Helper.Events.GameLoop.UpdateTicked -= this.OnDelayedSpawn;
+            _isWaitingToSpawn = false;
+
+            this.SpawnDailyItems();
+        }
+
+        private void SpawnDailyItems()
+        {
+            var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
+            if (pool == null || pool.Count == 0)
+            {
+                this.Monitor.Log("[生成] 池为空，跳过今日生成。", LogLevel.Warn);
+                return;
+            }
+
+            if (!pool.TryGetValue(PantryPoolGroup, out var pantryItems) || pantryItems.Count == 0)
+            {
+                this.Monitor.Log($"[生成] 池中没有 {PantryPoolGroup} 组，跳过今日生成。", LogLevel.Warn);
+                return;
+            }
+
+            var location = Game1.getLocationFromName(PantryLocationName);
+            if (location == null)
+            {
+                this.Monitor.Log($"[生成] 找不到 {PantryLocationName}，跳过今日生成。", LogLevel.Warn);
+                return;
+            }
+
+            var ledger = this.Helper.Data.ReadSaveData<List<SpawnLedgerEntry>>(LedgerKey)
+                         ?? new List<SpawnLedgerEntry>();
+
+            string today = Game1.Date.TotalDays.ToString();
+            if (ledger.Any(entry => entry.LocationName == PantryLocationName && entry.BatchDate == today))
+            {
+                this.Monitor.Log("[生成] 今日已生成过，跳过。", LogLevel.Trace);
+                return;
+            }
+
+            const int spawnCount = 10;
+            var rng = new Random((int)Game1.Date.TotalDays ^ PantryLocationName.GetHashCode());
+            int spawned = 0;
+
+            for (int i = 0; i < spawnCount; i++)
+            {
+                var poolItem = pantryItems[rng.Next(pantryItems.Count)];
+
+                if (!TryFindEmptyTile(location, rng, out int tx, out int ty))
+                {
+                    this.Monitor.Log($"[生成] 找不到空地，已生成 {spawned}/{spawnCount} 个，今日提前结束。", LogLevel.Warn);
+                    break;
+                }
+
+                StardewValley.Object? item = null;
+                try
+                {
+                    item = ItemRegistry.Create<StardewValley.Object>(poolItem.QualifiedItemId, 1);
+                }
+                catch (Exception ex)
+                {
+                    this.Monitor.Log($"[生成] 创建物品 {poolItem.QualifiedItemId} 失败：{ex.Message}，跳过。", LogLevel.Warn);
+                    continue;
+                }
+
+                if (item == null)
+                {
+                    this.Monitor.Log($"[生成] ItemRegistry 返回 null：{poolItem.QualifiedItemId}，跳过。", LogLevel.Warn);
+                    continue;
+                }
+
+                var tile = new Vector2(tx, ty);
+
+                // dropObject 需要像素坐标，所以 tile 要乘以 Game1.tileSize (64)
+                bool dropped = location.dropObject(item, tile * Game1.tileSize, Game1.viewport, true, null);
+
+                if (!dropped)
+                {
+                    this.Monitor.Log($"[生成] dropObject 失败于 ({tx},{ty})，跳过该物品。", LogLevel.Warn);
+                    continue;
+                }
+
+                ledger.Add(new SpawnLedgerEntry
+                {
+                    LocationName = PantryLocationName,
+                    TileX = tx,
+                    TileY = ty,
+                    QualifiedItemId = poolItem.QualifiedItemId,
+                    BatchDate = today,
+                    SourceType = poolItem.SourceType,
+                    BundleName = poolItem.BundleName,
+                    Type = "Ground",
+                });
+                spawned++;
+            }
+
+            this.Helper.Data.WriteSaveData(LedgerKey, ledger);
+            this.Monitor.Log($"[生成] 今日生成 {spawned}/{spawnCount} 个，账本累计 {ledger.Count} 条。", LogLevel.Info);
+        }
+
+        private bool TryFindEmptyTile(GameLocation location, Random rng, out int tx, out int ty)
+        {
+            const int maxAttempts = 50;
+            int width = location.map.Layers[0].LayerWidth;
+            int height = location.map.Layers[0].LayerHeight;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                int x = rng.Next(width);
+                int y = rng.Next(height);
+                if (IsValidSpawnTile(location, x, y))
+                {
+                    tx = x;
+                    ty = y;
+                    return true;
+                }
+            }
+
+            tx = -1;
+            ty = -1;
+            return false;
+        }
+
+        private static bool IsValidSpawnTile(GameLocation location, int x, int y)
+        {
+            var tile = new Vector2(x, y);
+
+            if (!location.isTileOnMap(tile))
+                return false;
+
+            if (location.objects.ContainsKey(tile))
+                return false;
+
+            if (location.terrainFeatures.ContainsKey(tile))
+                return false;
+
+            string? waterProp = location.doesTileHaveProperty(x, y, "Water", "Back");
+            if (!string.IsNullOrEmpty(waterProp))
+                return false;
+
+            if (!location.isTilePassable(tile))
+                return false;
+
+            return true;
+        }
+
+        private void OnLedgerCommand(string command, string[] args)
+        {
+            if (!Context.IsWorldReady)
+            {
+                this.Monitor.Log("请先加载一个存档。", LogLevel.Warn);
+                return;
+            }
+
+            var ledger = this.Helper.Data.ReadSaveData<List<SpawnLedgerEntry>>(LedgerKey);
+            if (ledger == null || ledger.Count == 0)
+            {
+                this.Monitor.Log("账本为空。", LogLevel.Warn);
+                return;
+            }
+
+            this.Monitor.Log($"账本共 {ledger.Count} 条：", LogLevel.Info);
+            foreach (var entry in ledger)
+            {
+                this.Monitor.Log(
+                    $"  {entry.BatchDate} | {entry.LocationName} ({entry.TileX},{entry.TileY}) | " +
+                    $"{entry.QualifiedItemId} | {entry.Type} | {entry.SourceType} | {entry.BundleName}",
+                    LogLevel.Info
+                );
+            }
         }
 
         // ===================== 邮件发送 =====================
