@@ -1,0 +1,7 @@
+{
+  "gmcm.section.global": "Global Settings",
+  "gmcm.cleanup-days.name": "Cleanup Interval (days)",
+  "gmcm.cleanup-days.tooltip": "How often to clear uncollected spawned items from submaps. 0 = never auto-cleanup.",
+  "gmcm.spawn-count.name": "Daily Spawn Count",
+  "gmcm.spawn-count.tooltip": "How many ground forage items to spawn daily in {{locationName}}."
+}

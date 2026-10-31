@@ -77,6 +77,8 @@ namespace BundlePoolProbe
 
         private int _spawnDelayCounter;
         private bool _isWaitingToSpawn;
+        private GlobalConfig _globalConfig = new();
+        private Dictionary<string, LocationSpawnConfig> _locationConfigs = new();
 
 
 
@@ -86,11 +88,134 @@ namespace BundlePoolProbe
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
             helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
+            helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
             helper.ConsoleCommands.Add("bpp_rebuild", "从 BundleData 重建静态池并写入存档。", this.OnRebuildCommand);
             helper.ConsoleCommands.Add("bpp_rawbundle", "打印当前 _bundleData 的原始条目。", this.OnRawBundleCommand);
             helper.ConsoleCommands.Add("bpp_ledger", "打印当前存档的生成账本。", this.OnLedgerCommand);
+        }
+        private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+        {
+            // 1. 启动时一次性加载所有 JSON 到缓存
+            this.LoadAllConfigsToCache();
+
+            // 2. 尝试获取 GMCM API
+            var configMenu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+            if (configMenu is null)
+            {
+                this.Monitor.Log("未检测到 GMCM，配置将仅从 JSON 读取。", LogLevel.Info);
+                return;
+            }
+
+            // 3. 注册菜单
+            configMenu.Register(
+                mod: this.ModManifest,
+                reset: () => this.ResetAllConfigsToDefault(),
+                save: () => this.SaveAllConfigsToDisk()
+            );
+
+            // 4. 添加全局清理周期
+            configMenu.AddSectionTitle(this.ModManifest,
+    () => this.Helper.Translation.Get("gmcm.section.global"));
+
+            configMenu.AddNumberOption(
+                mod: this.ModManifest,
+                getValue: () => this._globalConfig.CleanupDays,
+                setValue: value => this._globalConfig.CleanupDays = value,
+                name: () => this.Helper.Translation.Get("gmcm.cleanup-days.name"),
+                tooltip: () => this.Helper.Translation.Get("gmcm.cleanup-days.tooltip"),
+                min: 0,
+                max: 28,
+                interval: 1
+            );
+
+            foreach (string locationName in SpawnLocationNames)
+            {
+                if (!this._locationConfigs.TryGetValue(locationName, out var locConfig))
+                    continue;
+
+                var capturedConfig = locConfig;
+                configMenu.AddSectionTitle(this.ModManifest, () => locationName);
+                configMenu.AddNumberOption(
+                    mod: this.ModManifest,
+                    getValue: () => capturedConfig.DailySpawnCount,
+                    setValue: value => capturedConfig.DailySpawnCount = value,
+                    name: () => this.Helper.Translation.Get("gmcm.spawn-count.name"),
+                    tooltip: () => this.Helper.Translation.Get(
+                        "gmcm.spawn-count.tooltip",
+                        new { locationName }),
+                    min: 0,
+                    max: 50,
+                    interval: 1
+                );
+            }
+        }
+        private void LoadAllConfigsToCache()
+        {
+            // 全局配置
+            var globalPath = "assets/Config/Global.json";
+            this._globalConfig = this.Helper.Data.ReadJsonFile<GlobalConfig>(globalPath)
+                                 ?? new GlobalConfig { CleanupDays = 1 };
+            if (this._globalConfig.CleanupDays < 0)
+            {
+                this.Monitor.Log($"Global.json 中 CleanupDays={this._globalConfig.CleanupDays} 非法，已设为 0（不清理）。", LogLevel.Warn);
+                this._globalConfig.CleanupDays = 0;
+            }
+
+            // 子地图配置
+            this._locationConfigs.Clear();
+            foreach (string locationName in SpawnLocationNames)
+            {
+                string path = $"assets/Config/{locationName}.json";
+                var config = this.Helper.Data.ReadJsonFile<LocationSpawnConfig>(path);
+                if (config == null)
+                {
+                    this.Monitor.Log($"子地图配置缺失或为空：{path}，将使用默认值。", LogLevel.Warn);
+                    config = new LocationSpawnConfig
+                    {
+                        LocationName = locationName,
+                        PoolGroup = this.GetDefaultPoolGroup(locationName),
+                        DailySpawnCount = 10
+                    };
+                }
+                this._locationConfigs[locationName] = config;
+            }
+        }
+
+        private void ResetAllConfigsToDefault()
+        {
+            this._globalConfig = new GlobalConfig { CleanupDays = 1 };
+            foreach (string locationName in SpawnLocationNames)
+            {
+                if (this._locationConfigs.TryGetValue(locationName, out var config))
+                {
+                    config.DailySpawnCount = 10; // 只重置玩家可改的字段，PoolGroup 不动
+                }
+            }
+        }
+
+        private void SaveAllConfigsToDisk()
+        {
+            this.Helper.Data.WriteJsonFile("assets/Config/Global.json", this._globalConfig);
+            foreach (var kv in this._locationConfigs)
+            {
+                this.Helper.Data.WriteJsonFile($"assets/Config/{kv.Key}.json", kv.Value);
+            }
+            this.Monitor.Log("GMCM 配置已保存回 JSON 文件。", LogLevel.Info);
+        }
+
+        private string GetDefaultPoolGroup(string locationName)
+        {
+            return locationName switch
+            {
+                "BPP_CraftsRoom" => "Crafts Room",
+                "BPP_Pantry" => "Pantry",
+                "BPP_FishTank" => "Fish Tank",
+                "BPP_BoilerRoom" => "Boiler Room",
+                "BPP_BulletinBoard" => "Bulletin Board",
+                _ => locationName
+            };
         }
 
         // ===================== 存档加载：只注册 Location，不碰池 =====================
@@ -201,61 +326,14 @@ namespace BundlePoolProbe
 
         private LocationSpawnConfig? ReadLocationConfig(string locationName)
         {
-            string path = $"assets/Config/{locationName}.json";
-
-            LocationSpawnConfig? config;
-            try
-            {
-                config = this.Helper.Data.ReadJsonFile<LocationSpawnConfig>(path);
-            }
-            catch (Exception ex)
-            {
-                this.Monitor.Log($"[生成] 读取 {path} 失败：{ex.Message}", LogLevel.Error);
-                return null;
-            }
-
-            if (config == null)
-            {
-                this.Monitor.Log($"[生成] 配置文件不存在或为空：{path}", LogLevel.Warn);
-                return null;
-            }
-
-            if (string.IsNullOrEmpty(config.LocationName)
-                || string.IsNullOrEmpty(config.PoolGroup)
-                || config.DailySpawnCount < 0)
-            {
-                this.Monitor.Log($"[生成] {path} 字段缺失或非法（LocationName={config.LocationName}, PoolGroup={config.PoolGroup}, DailySpawnCount={config.DailySpawnCount}）。", LogLevel.Warn);
-                return null;
-            }
-
-            return config;
+            return this._locationConfigs.TryGetValue(locationName, out var config) ? config : null;
         }
 
         private GlobalConfig ReadGlobalConfig()
         {
-            string path = "assets/Config/Global.json";
-
-            try
-            {
-                var config = this.Helper.Data.ReadJsonFile<GlobalConfig>(path);
-                if (config == null)
-                {
-                    this.Monitor.Log($"[清理] 全局配置不存在或为空：{path}，使用默认 CleanupDays=1", LogLevel.Warn);
-                    return new GlobalConfig { CleanupDays = 1 };
-                }
-                if (config.CleanupDays < 0)
-                {
-                    this.Monitor.Log($"[清理] CleanupDays={config.CleanupDays} 非法，视为不清理。", LogLevel.Warn);
-                    config.CleanupDays = 0;
-                }
-                return config;
-            }
-            catch (Exception ex)
-            {
-                this.Monitor.Log($"[清理] 读取 {path} 失败：{ex.Message}，使用默认 CleanupDays=1", LogLevel.Warn);
-                return new GlobalConfig { CleanupDays = 1 };
-            }
+            return this._globalConfig;
         }
+
         private void CleanupAllLocations()
         {
             var global = this.ReadGlobalConfig();

@@ -1,0 +1,7 @@
+{
+  "gmcm.section.global": "全局设置",
+  "gmcm.cleanup-days.name": "清理周期（天）",
+  "gmcm.cleanup-days.tooltip": "每隔多少天清理一次子地图上未采集的生成物。0 = 不自动清理。",
+  "gmcm.spawn-count.name": "每日生成数量",
+  "gmcm.spawn-count.tooltip": "在 {{locationName}} 每天生成多少个地面觅食物品。"
+}
