@@ -18,17 +18,7 @@ namespace BundlePoolProbe
         public string SourceType { get; set; } = "";
         public string BundleName { get; set; } = "";
     }
-    public class SpawnLedgerEntry
-    {
-        public string LocationName { get; set; } = "";
-        public int TileX { get; set; }
-        public int TileY { get; set; }
-        public string QualifiedItemId { get; set; } = "";
-        public string BatchDate { get; set; } = "";
-        public string SourceType { get; set; } = "";
-        public string BundleName { get; set; } = "";
-        public string Type { get; set; } = "";  // "Ground" / "Container"
-    }
+
     public class LocationSpawnConfig
     {
         public string LocationName { get; set; } = "";
@@ -40,17 +30,9 @@ namespace BundlePoolProbe
         public int CleanupDays { get; set; } = 1;
     }
 
-    public class FarmWarpConfig
-    {
-        public int Coordinates_X { get; set; } = 55;
-        public int Coordinates_Y { get; set; } = 10;
-    }
 
     public class ModEntry : Mod
     {
-        private const string MailId = "BundlePoolProbe.Mail";
-        private const string QueuedKey = "ProbeMailQueued";
-        private const string BodyKey = "BundlePoolProbe.MailBody";
         private const string PoolKey = "BundlePool";
 
         private const string CpPackFolderName = "[CP] BundlePoolProbe";
@@ -60,7 +42,6 @@ namespace BundlePoolProbe
 
         private const int BUILD_DELAY_TICKS = 300;  // 5 秒
 
-        private const string LedgerKey = "SpawnLedger";
         private const int SPAWN_DELAY_TICKS = 400;
         private static readonly string[] SpawnLocationNames = new[]
         {
@@ -71,7 +52,6 @@ namespace BundlePoolProbe
     "BPP_BulletinBoard",
 };
 
-        private string? _pendingMailBody;
         private int _buildDelayCounter;
         private bool _isWaitingToBuild;
 
@@ -86,14 +66,12 @@ namespace BundlePoolProbe
         {
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
-            helper.Events.Content.AssetRequested += this.OnAssetRequested;
             helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
             helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
             helper.ConsoleCommands.Add("bpp_rebuild", "从 BundleData 重建静态池并写入存档。", this.OnRebuildCommand);
             helper.ConsoleCommands.Add("bpp_rawbundle", "打印当前 _bundleData 的原始条目。", this.OnRawBundleCommand);
-            helper.ConsoleCommands.Add("bpp_ledger", "打印当前存档的生成账本。", this.OnLedgerCommand);
         }
         private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
         {
@@ -244,7 +222,6 @@ namespace BundlePoolProbe
                     LogLevel.Info
                 );
 
-                this.TrySendMail(pool);
                 return;
             }
 
@@ -278,7 +255,6 @@ namespace BundlePoolProbe
                     $"[诊断] 延迟结束后读到已有池（可能被手动构建）：{pool.Count} 组 / {this.CountItems(pool)} 条目",
                     LogLevel.Info
                 );
-                this.TrySendMail(pool);
                 return;
             }
 
@@ -296,7 +272,6 @@ namespace BundlePoolProbe
                 LogLevel.Info
             );
 
-            this.TrySendMail(pool);
         }
         // ===================== 每日生成 =====================
         private void ScheduleSpawnForToday()
@@ -509,53 +484,6 @@ namespace BundlePoolProbe
             return true;
         }
 
-        private void OnLedgerCommand(string command, string[] args)
-        {
-            if (!Context.IsWorldReady)
-            {
-                this.Monitor.Log("请先加载一个存档。", LogLevel.Warn);
-                return;
-            }
-
-            var ledger = this.Helper.Data.ReadSaveData<List<SpawnLedgerEntry>>(LedgerKey);
-            if (ledger == null || ledger.Count == 0)
-            {
-                this.Monitor.Log("账本为空。", LogLevel.Warn);
-                return;
-            }
-
-            this.Monitor.Log($"账本共 {ledger.Count} 条：", LogLevel.Info);
-            foreach (var entry in ledger)
-            {
-                this.Monitor.Log(
-                    $"  {entry.BatchDate} | {entry.LocationName} ({entry.TileX},{entry.TileY}) | " +
-                    $"{entry.QualifiedItemId} | {entry.Type} | {entry.SourceType} | {entry.BundleName}",
-                    LogLevel.Info
-                );
-            }
-        }
-
-        // ===================== 邮件发送 =====================
-        private void TrySendMail(Dictionary<string, List<PoolItem>> pool)
-        {
-            if (this.Helper.Data.ReadSaveData<string>(QueuedKey) == "1")
-            {
-                this.Monitor.Log("此存档已发送过探测邮件，跳过。", LogLevel.Trace);
-                return;
-            }
-
-            _pendingMailBody = this.BuildMailBodyFromPool(pool);
-            this.Helper.Data.WriteSaveData(BodyKey, _pendingMailBody);
-            this.Helper.Data.WriteSaveData(QueuedKey, "1");
-
-            this.Helper.GameContent.InvalidateCache("Data/mail");
-            Game1.mailbox.Add(MailId);
-
-            this.Monitor.Log(
-                "探测邮件已放入邮箱。正文预览：\n" + _pendingMailBody.Replace("^", Environment.NewLine),
-                LogLevel.Info
-            );
-        }
 
         // ===================== 自定义 Location =====================
         private void EnsureCustomLocations()
@@ -695,21 +623,7 @@ namespace BundlePoolProbe
 
             return fallback;
         }
-        // ===================== 邮件资产注入 =====================
-        private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
-        {
-            if (!e.NameWithoutLocale.IsEquivalentTo("Data/mail"))
-                return;
 
-            e.Edit(asset =>
-            {
-                var data = asset.AsDictionary<string, string>().Data;
-                string body = _pendingMailBody
-                    ?? this.Helper.Data.ReadSaveData<string>(BodyKey)
-                    ?? "探测邮件正文未生成。";
-                data[MailId] = body;
-            });
-        }
 
         // ===================== 控制台命令 =====================
         private void OnDumpCommand(string command, string[] args)
@@ -922,35 +836,6 @@ namespace BundlePoolProbe
             return pool;
         }
 
-        // ===================== 邮件正文 =====================
-        private string BuildMailBodyFromPool(Dictionary<string, List<PoolItem>> pool)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("当前存档献祭包需要的物品：");
-            sb.AppendLine();
-
-            foreach (var room in pool.OrderBy(kv => kv.Key))
-            {
-                sb.AppendLine($"【{room.Key}】");
-
-                foreach (var bundle in room.Value.GroupBy(i => i.BundleName))
-                {
-                    var names = bundle
-                        .Select(i => this.GetDisplayName(i.QualifiedItemId))
-                        .Distinct()
-                        .ToList();
-
-                    if (names.Count == 0)
-                        continue;
-
-                    sb.AppendLine($"{bundle.Key}：{string.Join("、", names)}");
-                }
-
-                sb.AppendLine();
-            }
-
-            return sb.ToString().Replace("\r\n", "^").Replace("\n", "^");
-        }
 
         // ===================== 工具 =====================
         private int CountItems(Dictionary<string, List<PoolItem>> pool)
