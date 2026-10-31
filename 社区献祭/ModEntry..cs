@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -16,6 +18,12 @@ namespace BundlePoolProbe
         public string BundleName { get; set; } = "";
     }
 
+    public class FarmWarpConfig
+    {
+        public int Coordinates_X { get; set; } = 45;
+        public int Coordinates_Y { get; set; } = 10;
+    }
+
     public class ModEntry : Mod
     {
         private const string MailId = "BundlePoolProbe.Mail";
@@ -23,51 +31,109 @@ namespace BundlePoolProbe
         private const string BodyKey = "BundlePoolProbe.MailBody";
         private const string PoolKey = "BundlePool";
 
-        // Hub 内部传送坐标：需要在你的 BPP_Hub.tmx 和 BPP_Pantry.tmx 上确认可站立
-        private const int HUB_ENTRY_X = 15;   // 枢纽里站上这一格右键 → Pantry
-        private const int HUB_ENTRY_Y = 4;
-        private const int HUB_SPAWN_X = 5;    // 从 Pantry 回 Hub 的落点
-        private const int HUB_SPAWN_Y = 5;
-        private const int PANTRY_SPAWN_X = 5; // 从 Hub 进入 Pantry 的落点
-        private const int PANTRY_SPAWN_Y = 5;
+        private const string CpPackFolderName = "[CP] BundlePoolProbe";
+
+        private const int HUB_EXIT_X = 26;
+        private const int HUB_EXIT_Y = 16;
+
+        private const int BUILD_DELAY_TICKS = 300;  // 5 秒
 
         private string? _pendingMailBody;
+        private int _buildDelayCounter;
+        private bool _isWaitingToBuild;
 
         public override void Entry(IModHelper helper)
         {
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
+            helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
             helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
 
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
             helper.ConsoleCommands.Add("bpp_rebuild", "从 BundleData 重建静态池并写入存档。", this.OnRebuildCommand);
+            helper.ConsoleCommands.Add("bpp_rawbundle", "打印当前 _bundleData 的原始条目。", this.OnRawBundleCommand);
         }
 
-        // ===================== 存档加载 =====================
+        // ===================== 存档加载：只注册 Location，不碰池 =====================
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             this.EnsureCustomLocations();
 
             var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
+            this.Monitor.Log(
+                $"[诊断] SaveLoaded 读到池：{(pool == null ? "null（等待构建）" : $"{pool.Count} 组 / {this.CountItems(pool)} 条目")}",
+                LogLevel.Info
+            );
+        }
 
-            if (pool == null || pool.Count == 0)
+        // ===================== 每日开始：池为空则延迟构建 =====================
+        private void OnDayStarted(object? sender, DayStartedEventArgs e)
+        {
+            var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
+
+            if (pool != null && pool.Count > 0)
             {
-                var bundleData = this.GetBundleData();
-                if (bundleData == null || bundleData.Count == 0)
-                {
-                    this.Monitor.Log("未能读取 BundleData，池未构建。", LogLevel.Warn);
-                    return;
-                }
-
-                pool = this.BuildPool(bundleData);
-                this.Helper.Data.WriteSaveData(PoolKey, pool);
-                this.Monitor.Log($"池已构建并写入存档：{pool.Count} 组，{this.CountItems(pool)} 个条目。", LogLevel.Info);
+                this.Monitor.Log(
+                    $"[诊断] DayStarted 读到已有池：{pool.Count} 组 / {this.CountItems(pool)} 条目",
+                    LogLevel.Info
+                );
+                this.TrySendMail(pool);
+                return;
             }
-            else
+
+            this.Monitor.Log(
+                $"[诊断] DayStarted 池为空，延迟 {BUILD_DELAY_TICKS} tick 后构建（等待混合数据就绪）",
+                LogLevel.Info
+            );
+
+            _buildDelayCounter = 0;
+            if (!_isWaitingToBuild)
             {
-                this.Monitor.Log($"从存档读取池：{pool.Count} 组，{this.CountItems(pool)} 个条目。", LogLevel.Info);
+                _isWaitingToBuild = true;
+                this.Helper.Events.GameLoop.UpdateTicked += this.OnDelayedBuild;
+            }
+        }
+
+        private void OnDelayedBuild(object? sender, UpdateTickedEventArgs e)
+        {
+            _buildDelayCounter++;
+            if (_buildDelayCounter < BUILD_DELAY_TICKS)
+                return;
+
+            this.Helper.Events.GameLoop.UpdateTicked -= this.OnDelayedBuild;
+            _isWaitingToBuild = false;
+
+            var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
+            if (pool != null && pool.Count > 0)
+            {
+                this.Monitor.Log(
+                    $"[诊断] 延迟结束后读到已有池（可能被手动构建）：{pool.Count} 组 / {this.CountItems(pool)} 条目",
+                    LogLevel.Info
+                );
+                this.TrySendMail(pool);
+                return;
             }
 
+            var bundleData = this.GetBundleData();
+            if (bundleData == null || bundleData.Count == 0)
+            {
+                this.Monitor.Log("[诊断] 延迟结束后 BundleData 仍为空，放弃构建。", LogLevel.Warn);
+                return;
+            }
+
+            pool = this.BuildPool(bundleData);
+            this.Helper.Data.WriteSaveData(PoolKey, pool);
+            this.Monitor.Log(
+                $"[诊断] 延迟构建池：{pool.Count} 组 / {this.CountItems(pool)} 条目，已写入 SaveData",
+                LogLevel.Info
+            );
+
+            this.TrySendMail(pool);
+        }
+
+        // ===================== 邮件发送 =====================
+        private void TrySendMail(Dictionary<string, List<PoolItem>> pool)
+        {
             if (this.Helper.Data.ReadSaveData<string>(QueuedKey) == "1")
             {
                 this.Monitor.Log("此存档已发送过探测邮件，跳过。", LogLevel.Trace);
@@ -87,24 +153,48 @@ namespace BundlePoolProbe
             );
         }
 
-        // ===================== 自定义 Location 与传送 =====================
+        // ===================== 自定义 Location =====================
         private void EnsureCustomLocations()
         {
-            if (Game1.getLocationFromName("BPP_Hub") == null)
+            // 按游戏内解锁顺序注册，便于日后排查
+            this.RegisterLocation("BPP_Hub");
+            this.RegisterLocation("BPP_CraftsRoom");
+            this.RegisterLocation("BPP_Pantry");
+            this.RegisterLocation("BPP_FishTank");
+            this.RegisterLocation("BPP_BoilerRoom");
+            this.RegisterLocation("BPP_BulletinBoard");
+        }
+
+        private void RegisterLocation(string locationName)
+        {
+            this.Monitor.Log($"开始注册 {locationName}...", LogLevel.Info);
+
+            if (Game1.getLocationFromName(locationName) != null)
+                return;
+
+            string relativePath = $"assets/Maps/{locationName}.tmx";
+            string fullPath = Path.Combine(this.Helper.DirectoryPath, "assets", "Maps", $"{locationName}.tmx");
+
+            if (!File.Exists(fullPath))
             {
-                string assetName = this.Helper.ModContent.GetInternalAssetName("assets/Maps/BPP_Hub.tmx").Name;
-                Game1.locations.Add(new GameLocation(assetName, "BPP_Hub"));
-                this.Monitor.Log($"已注册 BPP_Hub，资产键：{assetName}", LogLevel.Info);
+                this.Monitor.Log($"注册 {locationName} 失败：文件不存在 {fullPath}", LogLevel.Error);
+                return;
             }
 
-            if (Game1.getLocationFromName("BPP_Pantry") == null)
+            try
             {
-                string assetName = this.Helper.ModContent.GetInternalAssetName("assets/Maps/BPP_Pantry.tmx").Name;
-                Game1.locations.Add(new GameLocation(assetName, "BPP_Pantry"));
-                this.Monitor.Log($"已注册 BPP_Pantry，资产键：{assetName}", LogLevel.Info);
+                string assetName = this.Helper.ModContent.GetInternalAssetName(relativePath).Name;
+                var location = new GameLocation(assetName, locationName) { IsOutdoors = true };
+                Game1.locations.Add(location);
+                this.Monitor.Log($"已注册 {locationName}，资产键：{assetName}", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                this.Monitor.Log($"注册 {locationName} 失败：{ex.GetType().Name} - {ex.Message}，路径 {fullPath}", LogLevel.Error);
             }
         }
 
+        // ===================== 传送 =====================
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (!Context.IsWorldReady)
@@ -120,18 +210,47 @@ namespace BundlePoolProbe
             int x = player.TilePoint.X;
             int y = player.TilePoint.Y;
 
-            // Hub → Pantry
-            if (loc.Name == "BPP_Hub" && x == HUB_ENTRY_X && y == HUB_ENTRY_Y)
+            if (loc.Name == "BPP_Hub" && x == HUB_EXIT_X && y == HUB_EXIT_Y)
             {
-                Game1.warpFarmer("BPP_Pantry", PANTRY_SPAWN_X, PANTRY_SPAWN_Y, false);
+                var cfg = this.ReadFarmWarpConfig();
+                int targetX = cfg.Coordinates_X;
+                int targetY = cfg.Coordinates_Y + 2;
+                Game1.warpFarmer("Farm", targetX, targetY, false);
+                this.Monitor.Log($"Hub → Farm 传送至 ({targetX}, {targetY})", LogLevel.Trace);
                 return;
             }
+        }
 
-            // Pantry → Hub
-            if (loc.Name == "BPP_Pantry" && x == 3 && y == 3)
+        // ===================== 读取 CP 配置 =====================
+        private FarmWarpConfig ReadFarmWarpConfig()
+        {
+            var defaults = new FarmWarpConfig { Coordinates_X = 45, Coordinates_Y = 10 };
+
+            string? parentDir = Path.GetDirectoryName(this.Helper.DirectoryPath);
+            if (string.IsNullOrEmpty(parentDir))
             {
-                Game1.warpFarmer("BPP_Hub", HUB_SPAWN_X, HUB_SPAWN_Y, false);
-                return;
+                this.Monitor.Log("无法定位 Mods 目录，使用默认坐标 (45, 10)。", LogLevel.Warn);
+                return defaults;
+            }
+
+            string configPath = Path.Combine(parentDir, CpPackFolderName, "config.json");
+            if (!File.Exists(configPath))
+            {
+                this.Monitor.Log("CP 包 config.json 不存在，使用默认坐标 (45, 10)。", LogLevel.Trace);
+                return defaults;
+            }
+
+            try
+            {
+                string text = File.ReadAllText(configPath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var cfg = JsonSerializer.Deserialize<FarmWarpConfig>(text, options);
+                return cfg ?? defaults;
+            }
+            catch (Exception ex)
+            {
+                this.Monitor.Log($"读取 CP config.json 失败：{ex.Message}，使用默认坐标。", LogLevel.Warn);
+                return defaults;
             }
         }
 
@@ -201,6 +320,39 @@ namespace BundlePoolProbe
             this.Monitor.Log($"池已重建：{pool.Count} 组，{this.CountItems(pool)} 个条目。", LogLevel.Info);
         }
 
+        private void OnRawBundleCommand(string command, string[] args)
+        {
+            if (!Context.IsWorldReady)
+            {
+                this.Monitor.Log("请先加载一个存档。", LogLevel.Warn);
+                return;
+            }
+
+            var data = this.GetBundleData();
+            if (data == null)
+            {
+                this.Monitor.Log("[诊断] 当前 BundleData 为 null。", LogLevel.Warn);
+                return;
+            }
+
+            string room = args.Length > 0 ? string.Join(" ", args) : "Crafts Room";
+
+            this.Monitor.Log($"[诊断] 当前 BundleData 总条目数：{data.Count}，打印房间：{room}", LogLevel.Info);
+
+            var entries = data
+                .Where(k => k.Key.StartsWith(room + "/", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(k =>
+                {
+                    var parts = k.Key.Split('/');
+                    return parts.Length > 1 && int.TryParse(parts[1], out int idx) ? idx : 0;
+                });
+
+            foreach (var kv in entries)
+            {
+                this.Monitor.Log($"[诊断] {kv.Key} => {kv.Value}", LogLevel.Info);
+            }
+        }
+
         // ===================== 数据访问 =====================
         private IDictionary<string, string>? GetBundleData()
         {
@@ -259,7 +411,8 @@ namespace BundlePoolProbe
                 {
                     string id = tokens[i];
 
-                    if (id == "-1")
+                    // 跳过所有负数 ID（-1 = 金钱，-5/-6 = 配方等特殊占位符）
+                    if (int.TryParse(id, out int numericId) && numericId < 0)
                         continue;
 
                     string qualified = ItemRegistry.ManuallyQualifyItemId(id, ItemRegistry.type_object);

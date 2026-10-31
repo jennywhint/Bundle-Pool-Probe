@@ -2594,7 +2594,7 @@
  <objectgroup id="4" name="Buildings">
   <object id="1161" name="TileData" x="0" y="15.9426" width="16" height="16">
    <properties>
-    <property name="Action" value="Warp 9 13 BPP_Hub"/>
+    <property name="Action" value="Warp 26 15 BPP_Hub"/>
    </properties>
   </object>
  </objectgroup>
