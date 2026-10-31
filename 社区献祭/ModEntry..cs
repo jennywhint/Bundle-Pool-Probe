@@ -29,6 +29,12 @@ namespace BundlePoolProbe
         public string BundleName { get; set; } = "";
         public string Type { get; set; } = "";  // "Ground" / "Container"
     }
+    public class LocationSpawnConfig
+    {
+        public string LocationName { get; set; } = "";
+        public string PoolGroup { get; set; } = "";
+        public int DailySpawnCount { get; set; }
+    }
 
     public class FarmWarpConfig
     {
@@ -52,8 +58,14 @@ namespace BundlePoolProbe
 
         private const string LedgerKey = "SpawnLedger";
         private const int SPAWN_DELAY_TICKS = 400;
-        private const string PantryLocationName = "BPP_Pantry";
-        private const string PantryPoolGroup = "Pantry";
+        private static readonly string[] SpawnLocationNames = new[]
+        {
+    "BPP_CraftsRoom",
+    "BPP_Pantry",
+    "BPP_FishTank",
+    "BPP_BoilerRoom",
+    "BPP_BulletinBoard",
+};
 
         private string? _pendingMailBody;
         private int _buildDelayCounter;
@@ -176,28 +188,70 @@ namespace BundlePoolProbe
             this.Helper.Events.GameLoop.UpdateTicked -= this.OnDelayedSpawn;
             _isWaitingToSpawn = false;
 
-            this.SpawnDailyItems();
+            foreach (string locationName in SpawnLocationNames)
+            {
+                this.SpawnForLocation(locationName);
+            }
         }
 
-        private void SpawnDailyItems()
+        private LocationSpawnConfig? ReadLocationConfig(string locationName)
         {
+            string path = $"assets/Config/{locationName}.json";
+
+            LocationSpawnConfig? config;
+            try
+            {
+                config = this.Helper.Data.ReadJsonFile<LocationSpawnConfig>(path);
+            }
+            catch (Exception ex)
+            {
+                this.Monitor.Log($"[生成] 读取 {path} 失败：{ex.Message}", LogLevel.Error);
+                return null;
+            }
+
+            if (config == null)
+            {
+                this.Monitor.Log($"[生成] 配置文件不存在或为空：{path}", LogLevel.Warn);
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(config.LocationName)
+                || string.IsNullOrEmpty(config.PoolGroup)
+                || config.DailySpawnCount < 0)
+            {
+                this.Monitor.Log($"[生成] {path} 字段缺失或非法（LocationName={config.LocationName}, PoolGroup={config.PoolGroup}, DailySpawnCount={config.DailySpawnCount}）。", LogLevel.Warn);
+                return null;
+            }
+
+            return config;
+        }
+
+        private void SpawnForLocation(string locationName)
+        {
+            var config = this.ReadLocationConfig(locationName);
+            if (config == null)
+            {
+                this.Monitor.Log($"[生成] {locationName} 配置不可用，跳过今日生成。", LogLevel.Warn);
+                return;
+            }
+
             var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
             if (pool == null || pool.Count == 0)
             {
-                this.Monitor.Log("[生成] 池为空，跳过今日生成。", LogLevel.Warn);
+                this.Monitor.Log($"[生成] {locationName}：池为空，跳过。", LogLevel.Warn);
                 return;
             }
 
-            if (!pool.TryGetValue(PantryPoolGroup, out var pantryItems) || pantryItems.Count == 0)
+            if (!pool.TryGetValue(config.PoolGroup, out var groupItems) || groupItems.Count == 0)
             {
-                this.Monitor.Log($"[生成] 池中没有 {PantryPoolGroup} 组，跳过今日生成。", LogLevel.Warn);
+                this.Monitor.Log($"[生成] {locationName}：池中没有 \"{config.PoolGroup}\" 组，跳过。", LogLevel.Warn);
                 return;
             }
 
-            var location = Game1.getLocationFromName(PantryLocationName);
+            var location = Game1.getLocationFromName(config.LocationName);
             if (location == null)
             {
-                this.Monitor.Log($"[生成] 找不到 {PantryLocationName}，跳过今日生成。", LogLevel.Warn);
+                this.Monitor.Log($"[生成] {locationName}：找不到地点 {config.LocationName}，跳过。", LogLevel.Warn);
                 return;
             }
 
@@ -205,23 +259,29 @@ namespace BundlePoolProbe
                          ?? new List<SpawnLedgerEntry>();
 
             string today = Game1.Date.TotalDays.ToString();
-            if (ledger.Any(entry => entry.LocationName == PantryLocationName && entry.BatchDate == today))
+            if (ledger.Any(entry => entry.LocationName == config.LocationName && entry.BatchDate == today))
             {
-                this.Monitor.Log("[生成] 今日已生成过，跳过。", LogLevel.Trace);
+                this.Monitor.Log($"[生成] {locationName}：今日已生成过，跳过。", LogLevel.Trace);
                 return;
             }
 
-            const int spawnCount = 10;
-            var rng = new Random((int)Game1.Date.TotalDays ^ PantryLocationName.GetHashCode());
+            int spawnCount = config.DailySpawnCount;
+            if (spawnCount <= 0)
+            {
+                this.Monitor.Log($"[生成] {locationName}：DailySpawnCount={spawnCount}，跳过。", LogLevel.Trace);
+                return;
+            }
+
+            var rng = new Random((int)Game1.Date.TotalDays ^ config.LocationName.GetHashCode());
             int spawned = 0;
 
             for (int i = 0; i < spawnCount; i++)
             {
-                var poolItem = pantryItems[rng.Next(pantryItems.Count)];
+                var poolItem = groupItems[rng.Next(groupItems.Count)];
 
                 if (!TryFindEmptyTile(location, rng, out int tx, out int ty))
                 {
-                    this.Monitor.Log($"[生成] 找不到空地，已生成 {spawned}/{spawnCount} 个，今日提前结束。", LogLevel.Warn);
+                    this.Monitor.Log($"[生成] {locationName}：找不到空地，已生成 {spawned}/{spawnCount} 个，提前结束。", LogLevel.Warn);
                     break;
                 }
 
@@ -232,30 +292,28 @@ namespace BundlePoolProbe
                 }
                 catch (Exception ex)
                 {
-                    this.Monitor.Log($"[生成] 创建物品 {poolItem.QualifiedItemId} 失败：{ex.Message}，跳过。", LogLevel.Warn);
+                    this.Monitor.Log($"[生成] {locationName}：创建 {poolItem.QualifiedItemId} 失败：{ex.Message}，跳过。", LogLevel.Warn);
                     continue;
                 }
 
                 if (item == null)
                 {
-                    this.Monitor.Log($"[生成] ItemRegistry 返回 null：{poolItem.QualifiedItemId}，跳过。", LogLevel.Warn);
+                    this.Monitor.Log($"[生成] {locationName}：ItemRegistry 返回 null：{poolItem.QualifiedItemId}，跳过。", LogLevel.Warn);
                     continue;
                 }
 
                 var tile = new Vector2(tx, ty);
-
-                // dropObject 需要像素坐标，所以 tile 要乘以 Game1.tileSize (64)
                 bool dropped = location.dropObject(item, tile * Game1.tileSize, Game1.viewport, true, null);
 
                 if (!dropped)
                 {
-                    this.Monitor.Log($"[生成] dropObject 失败于 ({tx},{ty})，跳过该物品。", LogLevel.Warn);
+                    this.Monitor.Log($"[生成] {locationName}：dropObject 失败于 ({tx},{ty})，跳过。", LogLevel.Warn);
                     continue;
                 }
 
                 ledger.Add(new SpawnLedgerEntry
                 {
-                    LocationName = PantryLocationName,
+                    LocationName = config.LocationName,
                     TileX = tx,
                     TileY = ty,
                     QualifiedItemId = poolItem.QualifiedItemId,
@@ -268,7 +326,7 @@ namespace BundlePoolProbe
             }
 
             this.Helper.Data.WriteSaveData(LedgerKey, ledger);
-            this.Monitor.Log($"[生成] 今日生成 {spawned}/{spawnCount} 个，账本累计 {ledger.Count} 条。", LogLevel.Info);
+            this.Monitor.Log($"[生成] {locationName}：今日生成 {spawned}/{spawnCount} 个。", LogLevel.Info);
         }
 
         private bool TryFindEmptyTile(GameLocation location, Random rng, out int tx, out int ty)
