@@ -34,7 +34,7 @@ namespace BundlePoolProbe
         private const string CpPackFolderName = "[CP] BundlePoolProbe";
 
         private const int HUB_EXIT_X = 26;
-        private const int HUB_EXIT_Y = 15;
+        private const int HUB_EXIT_Y = 16;
 
         private const int BUILD_DELAY_TICKS = 300;  // 5 秒
 
@@ -195,6 +195,10 @@ namespace BundlePoolProbe
         }
 
         // ===================== 传送 =====================
+        private static bool IsAdjacentTo(int px, int py, int targetX, int targetY)
+        {
+            return Math.Abs(px - targetX) <= 1 && Math.Abs(py - targetY) <= 1;
+        }
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (!Context.IsWorldReady)
@@ -210,7 +214,7 @@ namespace BundlePoolProbe
             int x = player.TilePoint.X;
             int y = player.TilePoint.Y;
 
-            if (loc.Name == "BPP_Hub" && x == HUB_EXIT_X && y == HUB_EXIT_Y)
+            if (loc.Name == "BPP_Hub" && IsAdjacentTo(x, y, HUB_EXIT_X, HUB_EXIT_Y))
             {
                 var (cfgX, cfgY) = this.ReadFarmWarpConfig();
                 int targetX = cfgX;
