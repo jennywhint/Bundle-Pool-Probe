@@ -2,6 +2,291 @@
 <map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="11">
  <tileset firstgid="1" name="spring_outdoorsTileSheet" tilewidth="16" tileheight="16" tilecount="1975" columns="25">
   <image source="spring_outdoorsTileSheet.png" width="400" height="1264"/>
+  <tile id="1186">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1187">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1188">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1211">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1212">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1213">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1227">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1228">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1229">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1230">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1231">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1237">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1238">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1239">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1240">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1241">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1242">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1243">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1244">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1245">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1246">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1247">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1248">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1249">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1252">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1253">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1254">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1255">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1256">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1263">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1264">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1265">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1266">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1267">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1268">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1269">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1270">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1271">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1272">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1273">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1274">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1277">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1278">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1279">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1280">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1281">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1297">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1298">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1299">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1302">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1303">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1304">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1305">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1306">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1322">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1323">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
+  <tile id="1324">
+   <properties>
+    <property name="Water" type="bool" value="true"/>
+   </properties>
+  </tile>
  </tileset>
  <tileset firstgid="1976" name="paths" tilewidth="16" tileheight="16" tilecount="64" columns="4">
   <image source="paths.png" width="64" height="256"/>
@@ -40,7 +325,12 @@
 1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275,1275
 </data>
  </layer>
- <objectgroup id="6" name="Back" visible="0"/>
+ <objectgroup id="6" name="Back" visible="0">
+  <properties>
+   <property name="Tpye" value=""/>
+   <property name="Water" type="bool" value="true"/>
+  </properties>
+ </objectgroup>
  <layer id="2" name="Buildings" width="30" height="30">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -49,9 +339,9 @@
 0,0,0,0,0,320,321,493,494,493,494,493,494,493,494,493,494,493,494,493,494,493,494,316,317,0,0,0,0,0,
 0,0,0,0,0,345,346,518,519,518,519,518,519,518,519,518,519,518,519,518,519,518,519,341,342,0,0,0,0,0,
 0,0,0,0,0,370,371,543,544,543,544,543,544,543,544,543,544,543,544,543,544,543,544,366,367,0,0,0,0,0,
-0,0,0,0,0,320,0,0,0,0,0,0,0,0,119,120,0,0,0,0,0,0,0,0,317,0,0,0,0,0,
-0,0,0,0,0,345,0,0,0,0,0,0,0,0,144,145,0,0,0,0,0,0,0,0,342,0,0,0,0,0,
-0,0,0,0,0,445,0,0,64,65,66,114,115,0,169,170,0,114,115,64,65,66,0,0,442,0,0,0,0,0,
+0,0,0,0,0,320,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,317,0,0,0,0,0,
+0,0,0,0,0,345,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,342,0,0,0,0,0,
+0,0,0,0,0,445,0,0,0,0,0,0,0,0,169,170,0,0,0,0,0,0,0,0,442,0,0,0,0,0,
 469,468,469,468,469,470,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,467,468,469,468,469,468,
 494,493,494,493,494,495,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,492,493,494,493,494,493,
 519,518,519,518,519,520,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,517,518,519,518,519,518,
@@ -63,15 +353,15 @@
 234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
 209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
 234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
-209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
+209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1232,0,0,0,0,0,1232,0,0,0,0,0,211,
 234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
 209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
-234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
+234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1232,0,0,0,0,0,0,0,0,211,
 209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
 234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
-209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
+209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1307,0,0,0,0,0,0,0,0,236,
 234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,211,
-209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,
+209,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1307,0,0,0,0,0,0,0,0,0,236,
 259,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,260,261
 </data>
  </layer>
@@ -95,8 +385,8 @@
 0,0,0,0,0,0,0,0,0,0,0,0,42,43,44,45,46,47,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,67,68,69,70,71,72,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,92,93,94,95,96,97,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,14,15,16,0,0,0,0,0,0,0,0,14,15,16,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,39,40,41,89,90,0,0,0,0,89,90,39,40,41,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,119,120,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,145,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -132,7 +422,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,2000,0,0,2001,0,0,0,0,2001,0,0,2000,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,2001,0,0,2001,0,0,2001,0,0,0,2001,0,0,2001,0,0,2001,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

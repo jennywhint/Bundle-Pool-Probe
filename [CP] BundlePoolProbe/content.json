@@ -1,7 +1,7 @@
 {
   "Format": "2.0.0",
   "ConfigSchema": {
-    "Coordinates_X": { "Default": 45 },
+    "Coordinates_X": { "Default": 55 },
     "Coordinates_Y": { "Default": 10 }
   },
   "Changes": [

@@ -20,7 +20,7 @@ namespace BundlePoolProbe
 
     public class FarmWarpConfig
     {
-        public int Coordinates_X { get; set; } = 45;
+        public int Coordinates_X { get; set; } = 55;
         public int Coordinates_Y { get; set; } = 10;
     }
 
@@ -34,7 +34,7 @@ namespace BundlePoolProbe
         private const string CpPackFolderName = "[CP] BundlePoolProbe";
 
         private const int HUB_EXIT_X = 26;
-        private const int HUB_EXIT_Y = 16;
+        private const int HUB_EXIT_Y = 15;
 
         private const int BUILD_DELAY_TICKS = 300;  // 5 秒
 

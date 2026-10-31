@@ -2572,7 +2572,7 @@
  </layer>
  <layer id="3" name="Buildings" width="1" height="2">
   <data encoding="base64" compression="zlib">
-   eJwzZmdg8AFiAAMWAI4=
+   eJxjYGBg8GFnYAAAAU0AVA==
   </data>
  </layer>
  <layer id="5" name="Front" width="1" height="2">
@@ -2580,25 +2580,25 @@
    eJwzZmcAAwAB0QA7
   </data>
  </layer>
- <layer id="7" name="Paths" width="1" height="2">
+ <layer id="7" name="Paths" width="1" height="2" visible="0">
   <data encoding="base64" compression="zlib">
    eJxjYIAAAAAIAAE=
   </data>
  </layer>
- <layer id="9" name="AlwaysFront" width="1" height="2">
+ <layer id="9" name="AlwaysFront" width="1" height="2" visible="0">
   <data encoding="base64" compression="zlib">
    eJxjYIAAAAAIAAE=
   </data>
  </layer>
- <objectgroup id="2" name="Back"/>
+ <objectgroup id="2" name="Back" visible="0"/>
  <objectgroup id="4" name="Buildings">
-  <object id="1161" name="TileData" x="0" y="15.9426" width="16" height="16">
+  <object id="1161" name="TileData" x="0" y="16" width="16" height="16">
    <properties>
-    <property name="Action" value="Warp 26 15 BPP_Hub"/>
+    <property name="Action" value="Warp 26 17 BPP_Hub"/>
    </properties>
   </object>
  </objectgroup>
  <objectgroup id="6" name="Front"/>
- <objectgroup id="8" name="Paths"/>
- <objectgroup id="10" name="AlwaysFront"/>
+ <objectgroup id="8" name="Paths" visible="0"/>
+ <objectgroup id="10" name="AlwaysFront" visible="0"/>
 </map>
