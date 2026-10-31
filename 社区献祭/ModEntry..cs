@@ -236,7 +236,7 @@ namespace BundlePoolProbe
             string configPath = Path.Combine(parentDir, CpPackFolderName, "config.json");
             if (!File.Exists(configPath))
             {
-                this.Monitor.Log("CP 包 config.json 不存在，使用默认坐标 (45, 10)。", LogLevel.Trace);
+                this.Monitor.Log($"[诊断] config.json 不存在，使用默认坐标 ({defaults.Coordinates_X}, {defaults.Coordinates_Y})，期望路径={configPath}", LogLevel.Info);
                 return defaults;
             }
 
@@ -245,6 +245,9 @@ namespace BundlePoolProbe
                 string text = File.ReadAllText(configPath);
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var cfg = JsonSerializer.Deserialize<FarmWarpConfig>(text, options);
+
+                this.Monitor.Log($"[诊断] 读到 CP config：X={cfg?.Coordinates_X}, Y={cfg?.Coordinates_Y}，路径={configPath}", LogLevel.Info);
+
                 return cfg ?? defaults;
             }
             catch (Exception ex)
