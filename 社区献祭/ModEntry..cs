@@ -1,14 +1,15 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using StardewModdingAPI;
+using StardewModdingAPI.Events;
+using StardewValley;
+using StardewValley.GameData.Locations;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using StardewModdingAPI;
-using StardewModdingAPI.Events;
-using StardewValley;
-using Microsoft.Xna.Framework;
 
 namespace BundlePoolProbe
 {
@@ -58,6 +59,8 @@ namespace BundlePoolProbe
         private int _spawnDelayCounter;
         private bool _isWaitingToSpawn;
         private List<string> _fishTankFishIds = new();
+        private int _fishTankCreateCounter;
+        private bool _isWaitingToCreateFishTank;
         private GlobalConfig _globalConfig = new();
         private Dictionary<string, LocationSpawnConfig> _locationConfigs = new();
 
@@ -209,24 +212,7 @@ namespace BundlePoolProbe
                 $"[诊断] SaveLoaded 读到池：{(pool == null ? "null（等待构建）" : $"{pool.Count} 组 / {this.CountItems(pool)} 条目")}",
                 LogLevel.Info
             );
-            // 1. 提取 Fish Tank 组的鱼类 ID
-            var fishIds = new List<string>();
-            if (pool != null && pool.TryGetValue("Fish Tank", out var fishTankItems))
-            {
-                foreach (var item in fishTankItems)
-                {
-                    var data = ItemRegistry.GetData(item.QualifiedItemId);
-                    if (data?.Category == -4) // -4 代表鱼类
-                        fishIds.Add(item.QualifiedItemId.Replace("(O)", ""));
-                }
-            }
-            this.Monitor.Log($"[鱼群] 从池中提取到 {fishIds.Count} 条鱼。", LogLevel.Info);
-
-            // 2. 将鱼 ID 存到临时字段，供 AssetRequested 使用
-            _fishTankFishIds = fishIds;
-
-            // 3. 强制游戏重新加载 Data/Locations，让鱼群立即生效
-            this.Helper.GameContent.InvalidateCache("Data/Locations");
+            this.PrepareFishTank();
         }
 
         // ===================== 每日开始：池为空则延迟构建 =====================
@@ -292,6 +278,7 @@ namespace BundlePoolProbe
                 $"[诊断] 延迟构建池：{pool.Count} 组 / {this.CountItems(pool)} 条目，已写入 SaveData",
                 LogLevel.Info
             );
+            this.PrepareFishTank();
 
         }
         // ===================== 每日生成 =====================
@@ -531,7 +518,8 @@ namespace BundlePoolProbe
             this.RegisterLocation("BPP_Hub");
             this.RegisterLocation("BPP_CraftsRoom");
             this.RegisterLocation("BPP_Pantry");
-            this.RegisterLocation("BPP_FishTank");
+
+
             this.RegisterLocation("BPP_BoilerRoom");
             this.RegisterLocation("BPP_BulletinBoard");
         }
@@ -571,6 +559,56 @@ namespace BundlePoolProbe
             return Math.Abs(px - targetX) <= 1 && Math.Abs(py - targetY) <= 1;
         }
 
+        private void PrepareFishTank()
+        {
+            var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
+            if (pool == null || !pool.TryGetValue("Fish Tank", out var fishTankItems))
+            {
+                _fishTankFishIds.Clear();
+                return;
+            }
+
+            _fishTankFishIds.Clear();
+            foreach (var item in fishTankItems)
+            {
+                var data = ItemRegistry.GetData(item.QualifiedItemId);
+                if (data?.Category == -4)
+                    _fishTankFishIds.Add(item.QualifiedItemId.Replace("(O)", ""));
+            }
+
+            if (_fishTankFishIds.Count == 0)
+            {
+                this.Monitor.Log("[鱼群] 池中没有鱼类，跳过。", LogLevel.Warn);
+                return;
+            }
+
+            // 通知游戏重新加载 Data/Locations，让 OnAssetRequestedForFish 把鱼写进去
+            this.Helper.GameContent.InvalidateCache("Data/Locations");
+            this.Monitor.Log($"[鱼群] 从池中提取到 {_fishTankFishIds.Count} 条鱼，等待创建 BPP_FishTank。", LogLevel.Info);
+
+            _fishTankCreateCounter = 0;
+            if (!_isWaitingToCreateFishTank)
+            {
+                _isWaitingToCreateFishTank = true;
+                this.Helper.Events.GameLoop.UpdateTicked += this.OnDelayedCreateFishTank;
+            }
+        }
+
+        private void OnDelayedCreateFishTank(object? sender, UpdateTickedEventArgs e)
+        {
+            _fishTankCreateCounter++;
+            if (_fishTankCreateCounter < 200)
+                return;
+
+            this.Helper.Events.GameLoop.UpdateTicked -= this.OnDelayedCreateFishTank;
+            _isWaitingToCreateFishTank = false;
+
+            if (Game1.getLocationFromName("BPP_FishTank") == null)
+            {
+                this.RegisterLocation("BPP_FishTank");
+                this.Monitor.Log("[鱼群] 鱼群数据就绪后，已创建 BPP_FishTank 地点。", LogLevel.Info);
+            }
+        }
         private void OnAssetRequestedForFish(object? sender, AssetRequestedEventArgs e)
         {
             if (!e.NameWithoutLocale.IsEquivalentTo("Data/Locations"))
@@ -578,56 +616,51 @@ namespace BundlePoolProbe
 
             e.Edit(asset =>
             {
-                if (asset.Data is not System.Collections.IDictionary dict)
-                    return;
-                if (!dict.Contains("BPP_FishTank"))
-                    return;
+                // 1. 获取或创建 BPP_FishTank 的 LocationData 实例
+                LocationData locData;
+                var data = asset.AsDictionary<string, LocationData>().Data;
 
-                var locDataObj = dict["BPP_FishTank"];
-                if (locDataObj == null)
-                    return;
+                if (data.TryGetValue("BPP_FishTank", out var existingData))
+                {
+                    locData = existingData; // 已存在（可能被其他模组添加），直接使用
+                }
+                else
+                {
+                    // 2. 通过反射创建 LocationData 新实例
+                    var locationDataType = typeof(LocationData);
+                    locData = (LocationData)Activator.CreateInstance(locationDataType)!;
+                    data["BPP_FishTank"] = locData;
+                    this.Monitor.Log("[鱼群] 已在 Data/Locations 中动态创建 BPP_FishTank 条目。", LogLevel.Info);
+                }
+
+                // 确保基础字段存在
+                if (string.IsNullOrEmpty(locData.DisplayName))
+                    locData.DisplayName = "Bundle Fish Tank";
+
+                // 确保 Fish 列表已初始化
+                locData.Fish ??= new List<SpawnFishData>();
+
+                // 4. 清空旧数据，填入池中的鱼
+                locData.Fish.Clear();
                 if (_fishTankFishIds.Count == 0)
                     return;
 
-                // 构建鱼群字符串：<鱼ID> -1 <鱼ID> -1 ...
-                var fishString = string.Join(" ", _fishTankFishIds.Select(id => $"{id} -1"));
-                var fishDict = new Dictionary<string, string>
+                foreach (string fishId in _fishTankFishIds)
                 {
-                    ["spring"] = fishString,
-                    ["summer"] = fishString,
-                    ["fall"] = fishString,
-                    ["winter"] = fishString
-                };
-
-                var type = locDataObj.GetType();
-                var binding = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
-
-                // 先尝试属性
-                var fishProp = type.GetProperty("Fish", binding);
-                if (fishProp != null && fishProp.CanWrite)
-                {
-                    fishProp.SetValue(locDataObj, fishDict);
-                    this.Monitor.Log($"[鱼群] 已写入 {_fishTankFishIds.Count} 条鱼到 BPP_FishTank（属性）。", LogLevel.Info);
-                    return;
+                    locData.Fish.Add(new SpawnFishData
+                    {
+                        ItemId = fishId,       // 鱼ID (如 "128")
+                        FishAreaId = null,// 关键修正：字段名是 FishAreaId，且是字符串类型
+                        Chance = 1f            // 等概率
+                    });
                 }
 
-                // 再尝试字段
-                var fishField = type.GetField("Fish", binding);
-                if (fishField != null)
-                {
-                    fishField.SetValue(locDataObj, fishDict);
-                    this.Monitor.Log($"[鱼群] 已写入 {_fishTankFishIds.Count} 条鱼到 BPP_FishTank（字段）。", LogLevel.Info);
-                    return;
-                }
+                this.Monitor.Log($"[鱼群] 已向 BPP_FishTank 写入 {locData.Fish.Count} 条鱼。", LogLevel.Info);
 
-                // 找不到，打诊断日志告诉我们 LocationData 到底有哪些成员
-                this.Monitor.Log($"[鱼群] LocationData 上找不到 Fish 成员，实际类型：{type.FullName}", LogLevel.Warn);
-                foreach (var f in type.GetFields(binding))
-                    this.Monitor.Log($"  字段：{f.Name} ({f.FieldType.Name})", LogLevel.Warn);
-                foreach (var p in type.GetProperties(binding))
-                    this.Monitor.Log($"  属性：{p.Name} ({p.PropertyType.Name})", LogLevel.Warn);
-            });
+            }, AssetEditPriority.Early); // 在 Late 阶段执行，确保覆盖其他模组的默认设置
         }
+
+
 
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
