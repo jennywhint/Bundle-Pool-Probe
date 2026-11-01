@@ -393,8 +393,9 @@ namespace BundlePoolProbe
                 groupItems = groupItems
                     .Where(item =>
                     {
+                        if (item.BundleName == "Crab Pot") return true;
                         var data = ItemRegistry.GetData(item.QualifiedItemId);
-                        return data?.Category != -4; // 保留非鱼类（蟹笼物品）
+                        return data?.Category != -4;
                     })
                     .ToList();
 
@@ -571,6 +572,8 @@ namespace BundlePoolProbe
             _fishTankFishIds.Clear();
             foreach (var item in fishTankItems)
             {
+                if (item.BundleName == "Crab Pot")
+                    continue;
                 var data = ItemRegistry.GetData(item.QualifiedItemId);
                 if (data?.Category == -4)
                     _fishTankFishIds.Add(item.QualifiedItemId.Replace("(O)", ""));
