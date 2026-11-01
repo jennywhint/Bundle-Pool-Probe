@@ -59,8 +59,7 @@ namespace BundlePoolProbe
         private int _spawnDelayCounter;
         private bool _isWaitingToSpawn;
         private List<string> _fishTankFishIds = new();
-        private int _fishTankCreateCounter;
-        private bool _isWaitingToCreateFishTank;
+
         private GlobalConfig _globalConfig = new();
         private Dictionary<string, LocationSpawnConfig> _locationConfigs = new();
 
@@ -72,6 +71,7 @@ namespace BundlePoolProbe
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
             helper.Events.Content.AssetRequested += this.OnAssetRequestedForFish;
+            helper.Events.Content.AssetRequested += this.OnAssetRequestedForLocations;
 
             helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
@@ -205,7 +205,6 @@ namespace BundlePoolProbe
         // ===================== 存档加载：只注册 Location，不碰池 =====================
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
-            this.EnsureCustomLocations();
 
             var pool = this.Helper.Data.ReadSaveData<Dictionary<string, List<PoolItem>>>(PoolKey);
             this.Monitor.Log(
@@ -512,47 +511,8 @@ namespace BundlePoolProbe
         }
 
 
-        // ===================== 自定义 Location =====================
-        private void EnsureCustomLocations()
-        {
-            // 按游戏内解锁顺序注册，便于日后排查
-            this.RegisterLocation("BPP_Hub");
-            this.RegisterLocation("BPP_CraftsRoom");
-            this.RegisterLocation("BPP_Pantry");
 
 
-            this.RegisterLocation("BPP_BoilerRoom");
-            this.RegisterLocation("BPP_BulletinBoard");
-        }
-
-        private void RegisterLocation(string locationName)
-        {
-            this.Monitor.Log($"开始注册 {locationName}...", LogLevel.Info);
-
-            if (Game1.getLocationFromName(locationName) != null)
-                return;
-
-            string relativePath = $"assets/Maps/{locationName}.tmx";
-            string fullPath = Path.Combine(this.Helper.DirectoryPath, "assets", "Maps", $"{locationName}.tmx");
-
-            if (!File.Exists(fullPath))
-            {
-                this.Monitor.Log($"注册 {locationName} 失败：文件不存在 {fullPath}", LogLevel.Error);
-                return;
-            }
-
-            try
-            {
-                string assetName = this.Helper.ModContent.GetInternalAssetName(relativePath).Name;
-                var location = new GameLocation(assetName, locationName) { IsOutdoors = true };
-                Game1.locations.Add(location);
-                this.Monitor.Log($"已注册 {locationName}，资产键：{assetName}", LogLevel.Info);
-            }
-            catch (Exception ex)
-            {
-                this.Monitor.Log($"注册 {locationName} 失败：{ex.GetType().Name} - {ex.Message}，路径 {fullPath}", LogLevel.Error);
-            }
-        }
 
         // ===================== 传送 =====================
         private static bool IsAdjacentTo(int px, int py, int targetX, int targetY)
@@ -587,31 +547,54 @@ namespace BundlePoolProbe
 
             // 通知游戏重新加载 Data/Locations，让 OnAssetRequestedForFish 把鱼写进去
             this.Helper.GameContent.InvalidateCache("Data/Locations");
+            var fishTank = Game1.getLocationFromName("BPP_FishTank");
+            if (fishTank != null && Game1.currentLocation != fishTank)
+            {
+                fishTank.reloadMap();
+            }
             this.Monitor.Log($"[鱼群] 从池中提取到 {_fishTankFishIds.Count} 条鱼，等待创建 BPP_FishTank。", LogLevel.Info);
 
-            _fishTankCreateCounter = 0;
-            if (!_isWaitingToCreateFishTank)
-            {
-                _isWaitingToCreateFishTank = true;
-                this.Helper.Events.GameLoop.UpdateTicked += this.OnDelayedCreateFishTank;
-            }
         }
 
-        private void OnDelayedCreateFishTank(object? sender, UpdateTickedEventArgs e)
+
+        private void OnAssetRequestedForLocations(object? sender, AssetRequestedEventArgs e)
+{
+    if (!e.NameWithoutLocale.IsEquivalentTo("Data/Locations"))
+        return;
+
+    e.Edit(asset =>
+    {
+        var data = asset.AsDictionary<string, LocationData>().Data;
+
+        string[] locationNames =
         {
-            _fishTankCreateCounter++;
-            if (_fishTankCreateCounter < 200)
-                return;
+            "BPP_Hub",
+            "BPP_CraftsRoom",
+            "BPP_Pantry",
+            "BPP_FishTank",
+            "BPP_BoilerRoom",
+            "BPP_BulletinBoard",
+        };
 
-            this.Helper.Events.GameLoop.UpdateTicked -= this.OnDelayedCreateFishTank;
-            _isWaitingToCreateFishTank = false;
+        foreach (string name in locationNames)
+        {
+            if (data.ContainsKey(name))
+                continue;
 
-            if (Game1.getLocationFromName("BPP_FishTank") == null)
+            string mapPath = $"SMAPI/{this.ModManifest.UniqueID.ToLowerInvariant()}/assets/Maps/{name}.tmx";
+
+            data[name] = new LocationData
             {
-                this.RegisterLocation("BPP_FishTank");
-                this.Monitor.Log("[鱼群] 鱼群数据就绪后，已创建 BPP_FishTank 地点。", LogLevel.Info);
-            }
+                DisplayName = name,
+                CreateOnLoad = new CreateLocationData
+                {
+                    MapPath = mapPath,
+                },
+            };
         }
+    }, AssetEditPriority.Early); // 在 Late 阶段执行，确保覆盖其他模组的默认设置
+        }
+
         private void OnAssetRequestedForFish(object? sender, AssetRequestedEventArgs e)
         {
             if (!e.NameWithoutLocale.IsEquivalentTo("Data/Locations"))
@@ -625,15 +608,26 @@ namespace BundlePoolProbe
 
                 if (data.TryGetValue("BPP_FishTank", out var existingData))
                 {
-                    locData = existingData; // 已存在（可能被其他模组添加），直接使用
+                    locData = existingData;
+                    if (locData.CreateOnLoad == null)
+                    {
+                        string mapPath = $"SMAPI/{this.ModManifest.UniqueID.ToLowerInvariant()}/assets/Maps/BPP_FishTank.tmx";
+                        locData.CreateOnLoad = new CreateLocationData { MapPath = mapPath };
+                    }
                 }
                 else
                 {
-                    // 2. 通过反射创建 LocationData 新实例
-                    var locationDataType = typeof(LocationData);
-                    locData = (LocationData)Activator.CreateInstance(locationDataType)!;
+                    string mapPath = $"SMAPI/{this.ModManifest.UniqueID.ToLowerInvariant()}/assets/Maps/BPP_FishTank.tmx";
+                    locData = new LocationData
+                    {
+                        DisplayName = "BPP_FishTank",
+                        CreateOnLoad = new CreateLocationData
+                        {
+                            MapPath = mapPath,
+                        },
+                    };
                     data["BPP_FishTank"] = locData;
-                    this.Monitor.Log("[鱼群] 已在 Data/Locations 中动态创建 BPP_FishTank 条目。", LogLevel.Info);
+                    this.Monitor.Log("[鱼群] 已在 Data/Locations 中动态创建 BPP_FishTank 条目（含 CreateOnLoad）。", LogLevel.Info);
                 }
 
                 // 确保基础字段存在
