@@ -366,8 +366,9 @@ namespace BundlePoolProbe
                 return;
             }
 
-            string todayKey = $"SpawnDone_{config.LocationName}_{Game1.Date.TotalDays}";
-            if (this.Helper.Data.ReadSaveData<string>(todayKey) == "1")
+            string lastDayKey = $"SpawnLastDay_{config.LocationName}";
+            string? lastDay = this.Helper.Data.ReadSaveData<string>(lastDayKey);
+            if (lastDay == Game1.Date.TotalDays.ToString())
             {
                 this.Monitor.Log($"[生成] {locationName}：今日已生成过，跳过。", LogLevel.Trace);
                 return;
@@ -430,7 +431,7 @@ namespace BundlePoolProbe
                     this.Monitor.Log($"[生成] {locationName}：第 {i + 1} 次生成失败，跳过。", LogLevel.Trace);
             }
 
-            this.Helper.Data.WriteSaveData(todayKey, "1");
+            this.Helper.Data.WriteSaveData(lastDayKey, Game1.Date.TotalDays.ToString());
             this.Monitor.Log($"[生成] {locationName}：今日生成 {spawned}/{spawnCount} 个。", LogLevel.Info);
         }
 

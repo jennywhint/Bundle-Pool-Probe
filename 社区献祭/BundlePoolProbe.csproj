@@ -63,8 +63,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-	<ItemGroup>
-		<ContentPacks Include="..\[CP] BundlePoolProbe" Version="1.0.0" />
-	</ItemGroup>
 
 </Project>
