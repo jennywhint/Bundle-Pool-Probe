@@ -1,0 +1,8 @@
+{
+  "ConfigSchema.Coordinates_X.Name": "农场传送点 X 坐标",
+  "ConfigSchema.Coordinates_X.Description": "传送图块的图块坐标 X。修改后请离开农场再回来。",
+  "ConfigSchema.Coordinates_Y.Name": "农场传送点 Y 坐标",
+  "ConfigSchema.Coordinates_Y.Description": "传送图块的图块坐标 Y。修改后请离开农场再回来。",
+  "ConfigSchema.CustomFarmMapName.Name": "自定义农场地图名（仅自定义农场需要填）",
+  "ConfigSchema.CustomFarmMapName.Description": "如果你使用的是自定义农场，请打开该农场模组的 content.json，找到其中的 MapName 字段，把值填到这里。原版农场玩家请留空。例如：SVE 的爷爷农场可填 Farm_FlashShifter（以实际 content.json 为准）。"
+}

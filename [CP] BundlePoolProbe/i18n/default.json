@@ -1,0 +1,8 @@
+{
+  "ConfigSchema.Coordinates_X.Name": "Farm Warp Tile X",
+  "ConfigSchema.Coordinates_X.Description": "Tile X coordinate of the warp marker. Leave and re-enter the farm after changing it.",
+  "ConfigSchema.Coordinates_Y.Name": "Farm Warp Tile Y",
+  "ConfigSchema.Coordinates_Y.Description": "Tile Y coordinate of the warp marker. Leave and re-enter the farm after changing it.",
+  "ConfigSchema.CustomFarmMapName.Name": "Custom Farm Map Name (only for custom farms)",
+  "ConfigSchema.CustomFarmMapName.Description": "If you use a custom farm, open that mod's content.json, find its MapName field, and put the value here. Leave blank for vanilla farms."
+}
