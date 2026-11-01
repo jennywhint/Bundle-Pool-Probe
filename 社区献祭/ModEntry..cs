@@ -57,6 +57,7 @@ namespace BundlePoolProbe
 
         private int _spawnDelayCounter;
         private bool _isWaitingToSpawn;
+        private List<string> _fishTankFishIds = new();
         private GlobalConfig _globalConfig = new();
         private Dictionary<string, LocationSpawnConfig> _locationConfigs = new();
 
@@ -67,6 +68,8 @@ namespace BundlePoolProbe
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
+            helper.Events.Content.AssetRequested += this.OnAssetRequestedForFish;
+
             helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
             helper.ConsoleCommands.Add("bpp_dump", "打印当前存档的静态池内容。", this.OnDumpCommand);
@@ -206,6 +209,24 @@ namespace BundlePoolProbe
                 $"[诊断] SaveLoaded 读到池：{(pool == null ? "null（等待构建）" : $"{pool.Count} 组 / {this.CountItems(pool)} 条目")}",
                 LogLevel.Info
             );
+            // 1. 提取 Fish Tank 组的鱼类 ID
+            var fishIds = new List<string>();
+            if (pool != null && pool.TryGetValue("Fish Tank", out var fishTankItems))
+            {
+                foreach (var item in fishTankItems)
+                {
+                    var data = ItemRegistry.GetData(item.QualifiedItemId);
+                    if (data?.Category == -4) // -4 代表鱼类
+                        fishIds.Add(item.QualifiedItemId.Replace("(O)", ""));
+                }
+            }
+            this.Monitor.Log($"[鱼群] 从池中提取到 {fishIds.Count} 条鱼。", LogLevel.Info);
+
+            // 2. 将鱼 ID 存到临时字段，供 AssetRequested 使用
+            _fishTankFishIds = fishIds;
+
+            // 3. 强制游戏重新加载 Data/Locations，让鱼群立即生效
+            this.Helper.GameContent.InvalidateCache("Data/Locations");
         }
 
         // ===================== 每日开始：池为空则延迟构建 =====================
@@ -379,6 +400,24 @@ namespace BundlePoolProbe
                 return;
             }
 
+            // 仅对 FishTank 生效：排除鱼类，让鱼只出现在水体里
+            if (config.LocationName == "BPP_FishTank")
+            {
+                groupItems = groupItems
+                    .Where(item =>
+                    {
+                        var data = ItemRegistry.GetData(item.QualifiedItemId);
+                        return data?.Category != -4; // 保留非鱼类（蟹笼物品）
+                    })
+                    .ToList();
+
+                if (groupItems.Count == 0)
+                {
+                    this.Monitor.Log($"[生成] {locationName}：过滤鱼类后地面池为空，跳过。", LogLevel.Warn);
+                    return;
+                }
+            }
+
             var location = Game1.getLocationFromName(config.LocationName);
             if (location == null)
             {
@@ -531,6 +570,65 @@ namespace BundlePoolProbe
         {
             return Math.Abs(px - targetX) <= 1 && Math.Abs(py - targetY) <= 1;
         }
+
+        private void OnAssetRequestedForFish(object? sender, AssetRequestedEventArgs e)
+        {
+            if (!e.NameWithoutLocale.IsEquivalentTo("Data/Locations"))
+                return;
+
+            e.Edit(asset =>
+            {
+                if (asset.Data is not System.Collections.IDictionary dict)
+                    return;
+                if (!dict.Contains("BPP_FishTank"))
+                    return;
+
+                var locDataObj = dict["BPP_FishTank"];
+                if (locDataObj == null)
+                    return;
+                if (_fishTankFishIds.Count == 0)
+                    return;
+
+                // 构建鱼群字符串：<鱼ID> -1 <鱼ID> -1 ...
+                var fishString = string.Join(" ", _fishTankFishIds.Select(id => $"{id} -1"));
+                var fishDict = new Dictionary<string, string>
+                {
+                    ["spring"] = fishString,
+                    ["summer"] = fishString,
+                    ["fall"] = fishString,
+                    ["winter"] = fishString
+                };
+
+                var type = locDataObj.GetType();
+                var binding = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+
+                // 先尝试属性
+                var fishProp = type.GetProperty("Fish", binding);
+                if (fishProp != null && fishProp.CanWrite)
+                {
+                    fishProp.SetValue(locDataObj, fishDict);
+                    this.Monitor.Log($"[鱼群] 已写入 {_fishTankFishIds.Count} 条鱼到 BPP_FishTank（属性）。", LogLevel.Info);
+                    return;
+                }
+
+                // 再尝试字段
+                var fishField = type.GetField("Fish", binding);
+                if (fishField != null)
+                {
+                    fishField.SetValue(locDataObj, fishDict);
+                    this.Monitor.Log($"[鱼群] 已写入 {_fishTankFishIds.Count} 条鱼到 BPP_FishTank（字段）。", LogLevel.Info);
+                    return;
+                }
+
+                // 找不到，打诊断日志告诉我们 LocationData 到底有哪些成员
+                this.Monitor.Log($"[鱼群] LocationData 上找不到 Fish 成员，实际类型：{type.FullName}", LogLevel.Warn);
+                foreach (var f in type.GetFields(binding))
+                    this.Monitor.Log($"  字段：{f.Name} ({f.FieldType.Name})", LogLevel.Warn);
+                foreach (var p in type.GetProperties(binding))
+                    this.Monitor.Log($"  属性：{p.Name} ({p.PropertyType.Name})", LogLevel.Warn);
+            });
+        }
+
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             
