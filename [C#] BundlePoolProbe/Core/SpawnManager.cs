@@ -232,7 +232,7 @@ namespace BundlePoolProbe
 
                 _mod.Monitor.Log($"[生成] {locationName}：通用池聚合 {groupItems.Count} 条物品。", LogLevel.Trace);
             }
-            else if (!pool.TryGetValue(config.PoolGroup, out groupItems) || groupItems.Count == 0)
+            else if (!pool.TryGetValue(config.PoolGroup, out groupItems!) || groupItems.Count == 0)
             {
                 _mod.Monitor.Log($"[生成] {locationName}：池中没有 \"{config.PoolGroup}\" 组，跳过。", LogLevel.Warn);
                 return;
