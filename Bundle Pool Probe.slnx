@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="社区献祭/BundlePoolProbe.csproj" />
+  <Project Path="[C#] BundlePoolProbe/BundlePoolProbe.csproj" />
+  <Properties Name="SolutionProperties">
+    <Property Name="WorkspaceFolder" Value="[C#] BundlePoolProbe" />
+  </Properties>
 </Solution>
