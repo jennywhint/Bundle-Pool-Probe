@@ -2,6 +2,17 @@
   "gmcm.section.global": "Global Settings",
   "gmcm.cleanup-days.name": "Cleanup Interval (days)",
   "gmcm.cleanup-days.tooltip": "How often to clear uncollected spawned items from submaps. 0 = never auto-cleanup.",
+  "gmcm.progressive-unlock.name": "Progressive Room Unlock",
+  "gmcm.progressive-unlock.tooltip": "If enabled, submap doors unlock following vanilla Community Center progression (drink the Wizard's potion, then complete bundles). If disabled, all rooms are always open.",
+  "gmcm.general-dedup.name": "Deduplicate General Pool",
+  "gmcm.general-dedup.tooltip": "If enabled, an item appearing in multiple unmapped bundle rooms counts once in the General Room pool. If disabled, duplicates increase the item's spawn weight.",
   "gmcm.spawn-count.name": "Daily Spawn Count",
-  "gmcm.spawn-count.tooltip": "How many ground forage items to spawn daily in {{locationName}}."
+  "gmcm.spawn-count.tooltip": "How many ground forage items to spawn daily in {{locationName}}.",
+  "gmcm.section.craftsroom": "Crafts Room",
+  "gmcm.section.pantry": "Pantry",
+  "gmcm.section.fishtank": "Fish Tank",
+  "gmcm.section.boilerroom": "Boiler Room",
+  "gmcm.section.bulletinboard": "Bulletin Board",
+  "gmcm.section.general": "General Room (Unmapped Rooms)",
+  "locked-room.kickout": "The Junimos here don't seem ready yet... Not yet..."
 }

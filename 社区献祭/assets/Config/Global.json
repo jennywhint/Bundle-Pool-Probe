@@ -1,3 +1,5 @@
 {
-  "CleanupDays": 1
+  "CleanupDays": 1,
+  "ProgressiveUnlock": true,
+  "GeneralPoolDedup": false
 }

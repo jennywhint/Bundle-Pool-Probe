@@ -1,7 +1,7 @@
 {
   "Name": "BundlePoolProbe (Farm Entrance)",
   "Author": "Awassakura",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Description": "为 BundlePoolProbe 提供农场传送入口。",
   "UniqueID": "Awassakura.BundlePoolProbe.CP",
   "ContentPackFor": {
@@ -9,5 +9,6 @@
   },
   "Dependencies": [
     { "UniqueID": "Awassakura.BundlePoolProbe" }
-  ]
+  ],
+  "UpdateKeys": ["Nexus:54908"]
 }

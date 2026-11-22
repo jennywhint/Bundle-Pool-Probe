@@ -2,6 +2,17 @@
   "gmcm.section.global": "全局设置",
   "gmcm.cleanup-days.name": "清理周期（天）",
   "gmcm.cleanup-days.tooltip": "每隔多少天清理一次子地图上未采集的生成物。0 = 不自动清理。",
+  "gmcm.progressive-unlock.name": "房间逐步解锁",
+  "gmcm.progressive-unlock.tooltip": "开启后，各子地图按原版社区中心进度逐步解锁：先找到法师喝下药水解锁工艺室，之后随献祭完成逐间开放。关闭后所有房间常开。",
+  "gmcm.general-dedup.name": "通用池去重",
+  "gmcm.general-dedup.tooltip": "开启后，同一物品即使出现在多个未映射房间/献祭包里，也只算一份。关闭后，重复出现的物品会有更高的生成权重。",
   "gmcm.spawn-count.name": "每日生成数量",
-  "gmcm.spawn-count.tooltip": "在 {{locationName}} 每天生成多少个地面觅食物品。"
+  "gmcm.spawn-count.tooltip": "在 {{locationName}} 每天生成多少个地面觅食物品。",
+  "gmcm.section.craftsroom": "工艺室",
+  "gmcm.section.pantry": "食物储藏",
+  "gmcm.section.fishtank": "水族箱",
+  "gmcm.section.boilerroom": "锅炉房",
+  "gmcm.section.bulletinboard": "布告板",
+  "gmcm.section.general": "通用房（未映射房间）",
+  "locked-room.kickout": "这里的祝尼魔似乎还没有准备好……现在还不行……"
 }

@@ -1,9 +1,10 @@
 {
   "Name": "BundlePoolProbe",
   "Author": "Awassakura",
-  "Version": "1.0.0",
-  "Description": "读取当前存档献祭包并发送探测邮件。",
+  "Version": "1.1.0",
+  "Description": "把当前存档的献祭包物品投放到自定义房间（含逐步解锁与通用池）。卸载前请先取走各房间内的物品。",
   "UniqueID": "Awassakura.BundlePoolProbe",
   "EntryDll": "BundlePoolProbe.dll",
-  "MinimumApiVersion": "4.0.0"
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": ["Nexus:54908"]
 }

@@ -2,41 +2,12 @@
   "Format": "2.0.0",
   "ConfigSchema": {
     "Coordinates_X": { "Default": 55 },
-    "Coordinates_Y": { "Default": 10 },
-    "CustomFarmMapName": {
-      "Default": "",
-      "AllowBlank": true
-    }
+    "Coordinates_Y": { "Default": 10 }
   },
-  "DynamicTokens": [
-    { "Name": "BPP_Farm", "Value": "Farm",              "When": { "FarmType": "Standard" } },
-    { "Name": "BPP_Farm", "Value": "Farm_Foraging",     "When": { "FarmType": "Forest" } },
-    { "Name": "BPP_Farm", "Value": "Farm_Fishing",      "When": { "FarmType": "Riverland" } },
-    { "Name": "BPP_Farm", "Value": "Farm_Mining",       "When": { "FarmType": "Hilltop" } },
-    { "Name": "BPP_Farm", "Value": "Farm_Combat",       "When": { "FarmType": "Wilderness" } },
-    { "Name": "BPP_Farm", "Value": "Farm_Beach",        "When": { "FarmType": "Beach" } },
-    { "Name": "BPP_Farm", "Value": "Farm_FourCorners",  "When": { "FarmType": "FourCorners" } },
-    { "Name": "BPP_Farm", "Value": "Farm_MeadowlandsFarm", "When": { "FarmType": "MeadowlandsFarm" } },
-    {
-      "Name": "BPP_Farm",
-      "Value": "{{FarmType}}",
-      "When": {
-        "Query: '{{FarmType}}' NOT IN ('Standard', 'Riverland', 'Forest', 'Hilltop', 'Wilderness', 'FourCorners', 'Beach', 'MeadowlandsFarm')": true,
-        "Query: '{{CustomFarmMapName}}'=''": true
-      }
-    },
-    {
-      "Name": "BPP_Farm",
-      "Value": "{{CustomFarmMapName}}",
-      "When": {
-        "Query: '{{CustomFarmMapName}}'=''": false
-      }
-    }
-  ],
   "Changes": [
     {
       "Action": "EditMap",
-      "Target": "Maps/{{BPP_Farm}}",
+      "Target": "Maps/{{Awassakura.BundlePoolProbe/ActualFarmMapName}}",
       "FromFile": "assets/BPP_FarmWarp.tmx",
       "FromArea": { "X": 0, "Y": 0, "Width": 1, "Height": 2 },
       "ToArea": {
