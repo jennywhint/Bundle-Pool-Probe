@@ -7,8 +7,5 @@
   "ContentPackFor": {
     "UniqueID": "Pathoschild.ContentPatcher"
   },
-  "Dependencies": [
-    { "UniqueID": "Awassakura.BundlePoolProbe" }
-  ],
   "UpdateKeys": ["Nexus:54908"]
 }
